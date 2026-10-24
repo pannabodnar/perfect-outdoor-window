@@ -1,0 +1,25 @@
+name: Daily outdoor window
+
+on:
+  schedule:
+    - cron: "0 7 * * *"          # 07:00 every day
+      timezone: "Europe/Berlin"  # same as Vienna
+  workflow_dispatch:             # button to start it manually
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install libraries
+        run: pip install -r requirements.txt
+
+      - name: Run the program
+        run: python main.py
