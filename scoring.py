@@ -57,3 +57,54 @@ def add_scores(df):
     df.loc[df["data_status"] == "incomplete", "total_score"] = float("nan")
 
     return df
+
+WINDOW_HOURS = 2  # length of the recommended window (agreed with the group)
+
+
+class NoValidWindowError(Exception):
+    """Raised when no reliable window can be recommended."""
+
+
+def find_best_window(df, start, end, window_hours=WINDOW_HOURS):
+    """Find the window of consecutive hours with the highest average score.
+
+    Only hours between 'start' and 'end' are used, so a window always ends by 'end'.
+    Windows that contain missing scores or missing hours are never considered.
+    Returns the best window and the table of all valid windows.
+    """
+    # Hours that can be part of a window: from start until end (end excluded,
+    # because the hour starting at 22:00 would end after 22:00)
+    period = df[(df["time"] >= start) & (df["time"] < end)]
+    period = period.sort_values("time").reset_index(drop=True)
+
+    windows = []
+    for i in range(len(period) - window_hours + 1):
+        block = period.iloc[i:i + window_hours]
+
+        # Skip blocks whose hours are not consecutive (a missing hour in between)
+        gaps = block["time"].diff().dropna()
+        if not (gaps == pd.Timedelta(hours=1)).all():
+            continue
+
+        # Skip blocks with a missing score (incomplete data)
+        if block["total_score"].isna().any():
+            continue
+
+        window_start = block["time"].iloc[0]
+        windows.append({
+            "window_start": window_start,
+            "window_end": window_start + pd.Timedelta(hours=window_hours),
+            "average_score": block["total_score"].mean(),
+        })
+
+    if not windows:
+        raise NoValidWindowError("No valid window: not enough complete consecutive hours")
+
+    windows = pd.DataFrame(windows)
+
+    # Highest average first; if two windows tie, the earlier one wins
+    windows = windows.sort_values(
+        ["average_score", "window_start"], ascending=[False, True]
+    ).reset_index(drop=True)
+
+    return windows.iloc[0], windows

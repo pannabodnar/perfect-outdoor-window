@@ -12,7 +12,7 @@ from fetch_data import (
 
 from validate_data import validate_combined_data, get_analysis_period, DataValidationError
 
-from scoring import add_scores
+from scoring import add_scores, find_best_window, NoValidWindowError
 
 weather = request_weather()
 air = request_air_quality()
@@ -69,6 +69,18 @@ print(scored_period[[
     "temperature_score", "rain_score", "air_quality_score", "total_score",
 ]])
 
+try:
+    best_window, all_windows = find_best_window(scored, start, end)
+except NoValidWindowError as e:
+    print("ERROR:", e)
+    sys.exit(1)
+
+print(all_windows)
+print(
+    f"Best two-hour window: {best_window['window_start']:%H:%M}-"
+    f"{best_window['window_end']:%H:%M}"
+)
+print(f"Average outdoor score: {best_window['average_score']:.1f}/100")
 
 print(weather.json())
 print(air.json())

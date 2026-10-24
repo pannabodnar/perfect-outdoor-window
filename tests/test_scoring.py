@@ -2,8 +2,10 @@ import math
 
 import pandas as pd
 
-from scoring import temperature_score, rain_score, air_quality_score, add_scores
-
+from scoring import (
+    temperature_score, rain_score, air_quality_score, add_scores,
+    find_best_window, NoValidWindowError,
+)
 
 def test_temperature_score():
     assert temperature_score(20) == 30      # ideal
@@ -60,3 +62,72 @@ def test_add_scores_matches_the_pdf_example():
     assert result.loc[1, "total_score"] == 90    # 30 + 30 + 30
     assert result.loc[2, "total_score"] == 80    # 30 + 20 + 30
     assert math.isnan(result.loc[3, "total_score"])  # incomplete hour: no score
+
+def make_scores(times, scores):
+    return pd.DataFrame({"time": pd.to_datetime(times), "total_score": scores})
+
+
+def test_best_window_matches_the_pdf_example():
+    df = make_scores(
+        ["2026-10-24 09:00", "2026-10-24 10:00", "2026-10-24 11:00", "2026-10-24 12:00"],
+        [100, 90, 80, 95],
+    )
+    start = pd.Timestamp("2026-10-24 09:00")
+    end = pd.Timestamp("2026-10-24 13:00")
+
+    best, windows = find_best_window(df, start, end)
+
+    assert best["window_start"] == pd.Timestamp("2026-10-24 09:00")
+    assert best["window_end"] == pd.Timestamp("2026-10-24 11:00")
+    assert best["average_score"] == 95
+    assert list(windows["average_score"]) == [95, 87.5, 85]
+
+
+def test_tie_selects_the_earlier_window():
+    df = make_scores(
+        ["2026-10-24 09:00", "2026-10-24 10:00", "2026-10-24 11:00"],
+        [80, 80, 80],
+    )
+    best, _ = find_best_window(
+        df, pd.Timestamp("2026-10-24 09:00"), pd.Timestamp("2026-10-24 12:00")
+    )
+    assert best["window_start"] == pd.Timestamp("2026-10-24 09:00")
+
+
+def test_windows_with_missing_scores_are_skipped():
+    df = make_scores(
+        ["2026-10-24 09:00", "2026-10-24 10:00", "2026-10-24 11:00", "2026-10-24 12:00"],
+        [100, float("nan"), 90, 90],
+    )
+    best, windows = find_best_window(
+        df, pd.Timestamp("2026-10-24 09:00"), pd.Timestamp("2026-10-24 13:00")
+    )
+    assert len(windows) == 1
+    assert best["window_start"] == pd.Timestamp("2026-10-24 11:00")
+
+
+def test_windows_with_a_missing_hour_are_skipped():
+    # the 10:00 row is missing, so 09:00 and 11:00 are not consecutive
+    df = make_scores(
+        ["2026-10-24 09:00", "2026-10-24 11:00", "2026-10-24 12:00"],
+        [100, 80, 80],
+    )
+    best, windows = find_best_window(
+        df, pd.Timestamp("2026-10-24 09:00"), pd.Timestamp("2026-10-24 13:00")
+    )
+    assert len(windows) == 1
+    assert best["window_start"] == pd.Timestamp("2026-10-24 11:00")
+
+
+def test_no_valid_window_raises_an_error():
+    df = make_scores(
+        ["2026-10-24 09:00", "2026-10-24 10:00", "2026-10-24 11:00", "2026-10-24 12:00"],
+        [float("nan"), 50, float("nan"), 50],
+    )
+    try:
+        find_best_window(
+            df, pd.Timestamp("2026-10-24 09:00"), pd.Timestamp("2026-10-24 13:00")
+        )
+        assert False, "NoValidWindowError was expected"
+    except NoValidWindowError:
+        pass
