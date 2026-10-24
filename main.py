@@ -14,6 +14,8 @@ from validate_data import validate_combined_data, get_analysis_period, DataValid
 
 from scoring import add_scores, find_best_window, NoValidWindowError
 
+from output import print_recommendation
+
 weather = request_weather()
 air = request_air_quality()
 
@@ -81,6 +83,9 @@ print(
     f"{best_window['window_end']:%H:%M}"
 )
 print(f"Average outdoor score: {best_window['average_score']:.1f}/100")
+
+print_recommendation(best_window, scored_period)
+
 
 print(weather.json())
 print(air.json())
