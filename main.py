@@ -10,6 +10,7 @@ from fetch_data import (
     combine_data,
 )
 
+from validate_data import validate_combined_data, get_analysis_period, DataValidationError
 
 weather = request_weather()
 air = request_air_quality()
@@ -44,6 +45,21 @@ except DataFetchError as e:
 print(combined.head())
 print(combined.shape)
 print(combined.dtypes)
+
+try:
+    validated = validate_combined_data(combined)
+except DataValidationError as e:
+    print("ERROR:", e)
+    sys.exit(1)
+
+print("Data validation: PASSED")
+
+start, end = get_analysis_period()
+period = validated[(validated["time"] >= start) & (validated["time"] <= end)]
+print(f"Analysis period: {start:%H:%M} - {end:%H:%M}")
+print(period["data_status"].value_counts())
+
+
 
 
 print(weather.json())
