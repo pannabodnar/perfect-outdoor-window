@@ -1,3 +1,5 @@
+import pandas as pd
+
 import requests
 
 #parameters
@@ -74,3 +76,22 @@ def check_response(name, response, variables):
             raise DataFetchError(f"{name}: '{v}' has a different length than 'time'")
 
     return data
+
+
+def to_dataframe(data):
+    """Convert the 'hourly' section of an API response into a DataFrame."""
+    df = pd.DataFrame(data["hourly"])
+    df["time"] = pd.to_datetime(df["time"])  # text -> real timestamps
+    return df
+
+
+def combine_data(weather_df, air_df):
+    """Combine the weather and air quality tables using their timestamps."""
+
+    # Do not assume the two responses match: check that they refer
+    # to exactly the same local hours before combining them
+    if not weather_df["time"].equals(air_df["time"]):
+        raise DataFetchError("Weather and air quality timestamps do not match")
+
+    # validate="one_to_one" raises an error if a timestamp is duplicated
+    return weather_df.merge(air_df, on="time", how="inner", validate="one_to_one")

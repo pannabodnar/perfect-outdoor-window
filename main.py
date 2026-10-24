@@ -6,6 +6,8 @@ from fetch_data import (
     DataFetchError,
     WEATHER_VARIABLES,
     AIR_QUALITY_VARIABLES,
+    to_dataframe,
+    combine_data,
 )
 
 
@@ -25,6 +27,23 @@ try:
 except DataFetchError as e:
     print("ERROR:", e)
     sys.exit(1)  # stop the program: no misleading recommendation
+
+
+weather_df = to_dataframe(weather_data)
+air_df = to_dataframe(air_data)
+
+print(weather_df.head(3))
+print(air_df.head(3))
+
+try:
+    combined = combine_data(weather_df, air_df)
+except DataFetchError as e:
+    print("ERROR:", e)
+    sys.exit(1)
+
+print(combined.head())
+print(combined.shape)
+print(combined.dtypes)
 
 
 print(weather.json())
