@@ -12,6 +12,8 @@ from fetch_data import (
 
 from validate_data import validate_combined_data, get_analysis_period, DataValidationError
 
+from scoring import add_scores
+
 weather = request_weather()
 air = request_air_quality()
 
@@ -59,7 +61,13 @@ period = validated[(validated["time"] >= start) & (validated["time"] <= end)]
 print(f"Analysis period: {start:%H:%M} - {end:%H:%M}")
 print(period["data_status"].value_counts())
 
+scored = add_scores(validated)
+scored_period = scored[(scored["time"] >= start) & (scored["time"] <= end)]
 
+print(scored_period[[
+    "time", "temperature_2m", "precipitation_probability", "european_aqi",
+    "temperature_score", "rain_score", "air_quality_score", "total_score",
+]])
 
 
 print(weather.json())
