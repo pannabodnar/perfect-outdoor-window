@@ -42,13 +42,14 @@ def test_air_quality_score():
     assert air_quality_score(80) == 5
     assert air_quality_score(80.1) == 0
 
-
+# check that missing data is not treated as a score of zero.
 def test_missing_values_are_not_zero():
+    # Check that if the temperature is missing, the temperature-scoring function also returns a missing value.
     assert math.isnan(temperature_score(float("nan")))
     assert math.isnan(rain_score(float("nan")))
     assert math.isnan(air_quality_score(float("nan")))
 
-
+# check whether  add_scores() function correctly calculates the total score for each hour
 def test_add_scores_matches_the_pdf_example():
     df = pd.DataFrame({
         "temperature_2m": [18, 20, 22, 20],
@@ -56,6 +57,9 @@ def test_add_scores_matches_the_pdf_example():
         "european_aqi": [18, 22, 35, float("nan")],
         "data_status": ["complete", "complete", "complete", "incomplete"],
     })
+
+    # This calls the add_scores() function from scoring.py. 
+    # It calculates the individual scores and adds a total_score column.
     result = add_scores(df)
 
     assert result.loc[0, "total_score"] == 100   # 30 + 30 + 40
@@ -63,18 +67,23 @@ def test_add_scores_matches_the_pdf_example():
     assert result.loc[2, "total_score"] == 80    # 30 + 20 + 30
     assert math.isnan(result.loc[3, "total_score"])  # incomplete hour: no score
 
+# A shortcut for creating test data. 
+# It does not calculate any scores; it simply puts the times and scores into a table
 def make_scores(times, scores):
     return pd.DataFrame({"time": pd.to_datetime(times), "total_score": scores})
 
 
 def test_best_window_matches_the_pdf_example():
     df = make_scores(
+        # Create the test data
         ["2026-10-24 09:00", "2026-10-24 10:00", "2026-10-24 11:00", "2026-10-24 12:00"],
         [100, 90, 80, 95],
     )
+    # Define the analysis period
     start = pd.Timestamp("2026-10-24 09:00")
     end = pd.Timestamp("2026-10-24 13:00")
 
+    # Find the best window
     best, windows = find_best_window(df, start, end)
 
     assert best["window_start"] == pd.Timestamp("2026-10-24 09:00")
@@ -88,9 +97,13 @@ def test_tie_selects_the_earlier_window():
         ["2026-10-24 09:00", "2026-10-24 10:00", "2026-10-24 11:00"],
         [80, 80, 80],
     )
+    # best receives the best window
+    # _ receives the list of all windows, but we don't need it in this test
+    # Using _ is a common Python convention meaning: I don't need this value
     best, _ = find_best_window(
         df, pd.Timestamp("2026-10-24 09:00"), pd.Timestamp("2026-10-24 12:00")
     )
+    # This checks whether the selected window starts at 09:00
     assert best["window_start"] == pd.Timestamp("2026-10-24 09:00")
 
 
@@ -128,6 +141,10 @@ def test_no_valid_window_raises_an_error():
         find_best_window(
             df, pd.Timestamp("2026-10-24 09:00"), pd.Timestamp("2026-10-24 13:00")
         )
+        #This line is reached only if find_best_window() does not raise an error.
+        # assert False deliberately fails the test.
+        # "NoValidWindowError was expected" explains why it failed.
         assert False, "NoValidWindowError was expected"
     except NoValidWindowError:
+        # pass means "do nothing." The error was expected, so the test can finish successfully.
         pass

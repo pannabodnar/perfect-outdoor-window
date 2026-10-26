@@ -1,3 +1,6 @@
 .venv/
 .venv-1/
 __pycache__/
+.DS_Store
+.Rhistory
+tests/.DS_Store
